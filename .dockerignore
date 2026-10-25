@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+*.log
+.env
+.env*.local
+backend/node_modules
+backend/dist
+invoices
+.DS_Store

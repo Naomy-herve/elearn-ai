@@ -1,0 +1,65 @@
+services:
+  # Frontend Next.js (standalone)
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/elearn
+      REDIS_URL: redis://redis:6379
+      NEXT_PUBLIC_API_NEST: http://localhost:3001
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      WHISPER_API_KEY: ${WHISPER_API_KEY:-}
+      STRIPE_SK: ${STRIPE_SK:-}
+      NEXT_PUBLIC_STRIPE_PK: ${NEXT_PUBLIC_STRIPE_PK:-}
+    depends_on:
+      nestjs:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Backend NestJS (logs/progression) — conforme au diagramme
+  nestjs:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/elearn
+      REDIS_URL: redis://redis:6379
+      WEB_ORIGIN: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # PostgreSQL — métadonnées (progression, notes, logs)
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: elearn
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Redis — cache (progressions servies en lecture rapide)
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata: {}
+  redisdata: {}

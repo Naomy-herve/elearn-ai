@@ -1,0 +1,71 @@
+// backend/prisma/schema.prisma
+// PostgreSQL — métadonnées (conforme au diagramme : NestJS -> PostgreSQL + Redis)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  skills    String[] @default([])
+  createdAt DateTime @default(now())
+
+  progressions Progression[]
+  notes       Note[]
+  logs        ActivityLog[]
+}
+
+model Course {
+  id       String @id @default(cuid())
+  title    String
+  level    String
+
+  progressions Progression[]
+}
+
+model Progression {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  percent   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  chapterId String
+  time      Int
+  text      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, courseId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // "video_play", "chapter_seek", "video_pause", "login"...
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
